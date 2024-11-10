@@ -4,52 +4,35 @@ from datetime import datetime
 from meteostat import Daily, Point
 
 class DatabaseManager:
-
-    '''La clase DatabaseManager gestiona la conexión y operaciones con una base de datos meteorológica.
-    
-    Facilita la extracción, actualización y combinación de datos meteorológicos almacenados en varias tablas.
-    Incluye métodos para obtener datos específicos, como coordenadas e ID de ciudades, y para actualizar y
-    combinar datos históricos y de predicción. Proporciona manejo de conexiones y errores para cada operación,
-    permitiendo la interacción estructurada y segura con la base de datos meteorológica.
-    '''
-
     def __init__(self, host='localhost', user='root', passwd='root', database='meteorology'):
-
         ''' 
-        Inicializa la clase DatabaseManager con los parámetros de conexión a la base de datos, 
-        configurando la URL de la base de datos con el host, usuario, contraseña y nombre de la base de datos.
+        Inicializa la clase DatabaseManager con los parámetros de conexión a la base de datos.
         '''
-
         self.database_url = f"mysql+pymysql://{user}:{passwd}@{host}/{database}"
 
     def connect_to_database(self):
-
         '''
         Establece una conexión con la base de datos usando la URL configurada en la inicialización.
 
         Returns:
             Connection: Objeto de conexión activo si la conexión es exitosa.
         '''
-
         try:
             return create_engine(self.database_url).connect()
         except Exception as e:
-            print(f"Error connecting to database: {e}")
+            print(f"Error al conectar a la base de datos: {e}")
 
     def close_connection(self, connection):
-
         '''
         Cierra la conexión a la base de datos si la conexión existe.
 
         Args:
             connection: Objeto de conexión a cerrar.
         '''
-
         if connection:
             connection.close()
-    
-    def get_dataframe(self, table):
 
+    def get_dataframe(self, table):
         '''
         Obtiene todos los registros de una tabla especificada y los devuelve en un DataFrame de pandas.
 
@@ -59,18 +42,16 @@ class DatabaseManager:
         Returns:
             DataFrame: DataFrame con los datos de la tabla o None si ocurre un error.
         '''
-
         connection = self.connect_to_database()
         try:
             query = f"SELECT * FROM {table}"
             return pd.read_sql(query, connection)
         except Exception as e:
-            print(f"Error loading data from {table}: {e}")
+            print(f"Error al cargar datos de la tabla {table}: {e}")
         finally:
             self.close_connection(connection)
 
-    def upload_data_to_database(self,df,table):
-
+    def upload_data_to_database(self, df, table):
         '''
         Sube datos de un DataFrame a una tabla de la base de datos, omitiendo valores nulos.
 
@@ -78,16 +59,15 @@ class DatabaseManager:
             df (DataFrame): DataFrame que contiene los datos a subir.
             table (str): Nombre de la tabla en la base de datos donde se subirán los datos.
         '''
-
         connection = self.connect_to_database()
         try:
             df = df.where(pd.notnull(df), None)
             df.to_sql(table, con=connection, if_exists='append', index=False, method='multi')
         except Exception as e:
-            print(f"Error uploading data: {e}")
+            print(f"Error al subir datos: {e}")
         finally:
             self.close_connection(connection)
-    
+
     def get_coordinates(self, city):
         '''
         Recupera las coordenadas de latitud y longitud para una ciudad específica.
@@ -146,7 +126,6 @@ class DatabaseManager:
             city (str): Nombre de la ciudad.
             connection: Conexión a la base de datos.
         '''
-        # Solicitar las coordenadas de la ciudad al usuario
         new_lat, new_lon = self.request_city_coordinates(city)
         if self.verify_city_in_api(new_lat, new_lon):
             self.save_city_to_db(city, new_lat, new_lon, connection)
@@ -165,19 +144,16 @@ class DatabaseManager:
         Returns:
             tuple: (latitud, longitud)
         '''
-        # Personalizar los mensajes para que incluyan el nombre de la ciudad
         print(f"\n\nIngrese las coordenadas para la ciudad: {city}")
         while True:
             try:
-                # Preguntar por la latitud con el nombre de la ciudad
                 new_lat = float(input(f"Ingrese la latitud de {city}: "))
                 break
             except ValueError:
                 print("Por favor, ingrese un valor numérico válido para la latitud.")
-        
+
         while True:
             try:
-                # Preguntar por la longitud con el nombre de la ciudad
                 new_lon = float(input(f"Ingrese la longitud de {city}: "))
                 break
             except ValueError:
@@ -208,7 +184,7 @@ class DatabaseManager:
         except Exception as e:
             print(f"Error verificando la estación en la API: {e}")
             return False
-    
+
     def save_city_to_db(self, city, lat, lon, connection):
         '''
         Guarda una nueva ciudad y sus coordenadas en la base de datos.
@@ -219,33 +195,24 @@ class DatabaseManager:
             lon (float): Longitud.
         '''
         try:
-            # Obtener el nuevo id para la ciudad
             new_id = pd.read_sql("SELECT MAX(id) FROM ciudad", connection).iloc[0, 0] + 1
-
-            # Imprimir valores para depuración
             print(f"\nInsertando ciudad: {city}, ID: {new_id}")
             print(f"Insertando coordenadas: {city}, Latitud: {lat}, Longitud: {lon}\n")
-            
-            # Preparar las consultas con `text()`
+
             query_city = text("INSERT INTO ciudad (id, ciudad) VALUES (:id, :ciudad)")
             query_coords = text("INSERT INTO coordenadas (ciudad, latitud, longitud) VALUES (:ciudad, :lat, :lon)")
-            
-            # Ejecutar las consultas con parámetros
+
             connection.execute(query_city, {"id": new_id, "ciudad": city})
             connection.execute(query_coords, {"ciudad": city, "lat": lat, "lon": lon})
-            
-            # Commit de las transacciones
+
             connection.commit()
-            
             print(f"Datos de {city} guardados en la base de datos.")
-            
+
         except Exception as e:
-            # Rollback en caso de error
             connection.rollback()
             print(f"Error al guardar la ciudad en la base de datos: {e}")
-    
-    def get_city_id(self, city):
 
+    def get_city_id(self, city):
         '''
         Obtiene el ID de una ciudad específica desde la base de datos.
 
@@ -255,12 +222,11 @@ class DatabaseManager:
         Returns:
             int or None: ID de la ciudad si existe, o None si ocurre un error.
         '''
-
         connection = self.connect_to_database()
         try:
             return pd.read_sql(f"SELECT id FROM ciudad WHERE ciudad = '{city}'", connection).iloc[0].iloc[0]
         except Exception as e:
-            print(f"Error fetching city ID for {city}: {e}")
+            print(f"Error al obtener el ID de la ciudad {city}: {e}")
         finally:
             self.close_connection(connection)
 
@@ -352,7 +318,7 @@ class DatabaseManager:
         try:
             # Obtener la fecha más reciente en la base de datos
             latest_date = self.get_latest_date(city)
-            current_date = datetime.now() - pd.DateOffset(days=1)
+            current_date = datetime.now()
 
             # Asegúrate de que latest_date no sea None
             if latest_date is None:
@@ -361,21 +327,28 @@ class DatabaseManager:
             
             # Comprobar si hay datos nuevos
             if (current_date - latest_date).days > 0:
+                # Obtener las coordenadas de la ciudad
                 latitud, longitud = self.get_coordinates(city)
+                
+                # Definir el rango de fechas desde la última fecha conocida hasta la fecha actual
                 start = latest_date + pd.DateOffset(days=1)
                 data = Daily(Point(latitud, longitud), start, current_date).fetch()
 
+                # Verificar si se obtuvo algún dato nuevo
                 if not data.empty:
+                    # Preparar los dataframes de temperatura y viento/nieve
                     df_temperature, df_wind_snow = self.prepare_dataframes(data, city)
+                    
+                    # Subir los datos a la base de datos
                     self.upload_data_to_database(df_temperature, 'temperatura')
                     self.upload_data_to_database(df_wind_snow, 'viento_nieve')
-                    print(f"Data for {city} from {start} to {current_date} has been added.")
+                    print(f"Se han añadido los datos para {city} desde {start} hasta {current_date}.")
                 else:
-                    print("No new data available.")
+                    print("No hay nuevos datos disponibles.")
             else:
-                print("Database is already up to date.")
+                print("La base de datos ya está actualizada.")
         except Exception as e:
-            print(f"Error updating database for {city}: {e}")
+            print(f"Error al actualizar la base de datos para {city}: {e}")
 
     def load_or_update_weather_data(self, city):
         '''
@@ -389,7 +362,6 @@ class DatabaseManager:
         try:
             connection = self.connect_to_database()
             
-            # Verifica si la ciudad ya tiene datos en la tabla 'temperatura'
             city_exists = self.city_exists_in_db(city, connection)
             
             if not city_exists:
@@ -399,7 +371,7 @@ class DatabaseManager:
                 print(f"La ciudad {city} ya está en la base de datos. Actualizando datos...")
                 self.update_database(city)  
         except Exception as e:
-            print(f"Error loading or updating weather data for {city}: {e}")
+            print(f"Error al cargar o actualizar los datos meteorológicos para {city}: {e}")
         finally:
             self.close_connection(connection)
     
@@ -442,19 +414,24 @@ class DatabaseManager:
         connection = None
         try:
             connection = self.connect_to_database()
+            
+            # Obtener las coordenadas de la ciudad
             lat, lon = self.get_coordinates(city)
             if lat is None or lon is None:
                 print("Error: No se encontraron las coordenadas de la ciudad.")
                 return
 
+            # Definir el rango de fechas desde 01/01/2018 hasta la fecha actual
             train_start_date = datetime.strptime("01/01/2018", "%d/%m/%Y")
             end_date = datetime.now()
             point = Point(lat, lon)
 
+            # Obtener los datos de la API de Meteostat
             data = Daily(point, train_start_date, end_date).fetch()
 
             # Verificar y avanzar hasta la fecha en la que ya no haya valores nulos en las columnas de interés
             if data[['tmin', 'tmax', 'tavg', 'pres']].isnull().any().any():
+                # Filtrar los datos hasta el primer valor válido
                 first_valid_index = data[['tmin', 'tmax', 'tavg', 'pres']].dropna().index[0]
                 data = data.loc[first_valid_index:]
                 print(f"Datos filtrados desde la fecha {first_valid_index} en adelante para evitar valores nulos.")
@@ -483,13 +460,18 @@ class DatabaseManager:
         Returns:
             tuple: DataFrames listos para subir (temperatura, viento_nieve).
         '''
+        # Crear DataFrame a partir de los datos obtenidos
         df = pd.DataFrame(data)
+        
+        # Agregar las columnas de día y id_ciudad
         df['dia'], df['id_ciudad'] = df.index, self.get_city_id(city)
         
+        # Preparar el DataFrame para las temperaturas
         df_temperature = df[['id_ciudad', 'dia', 'tmax', 'tmin', 'tavg', 'prcp']].rename(columns={
             'tmax': 'temp_max', 'tmin': 'temp_min', 'tavg': 'avg_temp', 'prcp': 'precp'
         })
         
+        # Preparar el DataFrame para el viento y la nieve
         df_wind_snow = df[['id_ciudad', 'dia', 'snow', 'wdir', 'wspd', 'wpgt', 'pres', 'tsun']].rename(columns={
             'snow': 'nieve', 'wdir': 'direc_viento', 'wspd': 'vel_viento',
             'wpgt': 'rafaga', 'pres': 'presion', 'tsun': 'tiempo_sol'
@@ -507,10 +489,10 @@ class DatabaseManager:
         connection = None
         try:
             connection = self.connect_to_database()
-            query = "SELECT MAX(dia) FROM prediccion"
+            query = "SELECT MAX(dia) FROM predic"
             return pd.read_sql(query, connection).iloc[0].iloc[0]
         except Exception as e:
-            print(f"Error retrieving latest prediction date: {e}")
+            print(f"Error al obtener la fecha más reciente de predicción: {e}")
             return None
         finally:
             self.close_connection(connection)
@@ -525,11 +507,11 @@ class DatabaseManager:
         connection = None
         try:
             connection = self.connect_to_database()
-            query = "SELECT * FROM prediccion WHERE dia = (SELECT MAX(dia) FROM prediccion)"
+            query = "SELECT * FROM predic WHERE dia = (SELECT MAX(dia) FROM predic)"
             df = pd.read_sql(query, connection)
             return df
         except Exception as e:
-            print(f"Error retrieving next prediction: {e}")
+            print(f"Error al obtener la siguiente predicción: {e}")
             return pd.DataFrame() 
         finally:
             self.close_connection(connection)

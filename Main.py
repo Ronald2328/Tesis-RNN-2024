@@ -2,7 +2,6 @@ import warnings
 from Get_data import DatabaseManager
 from ModelTraining import ModelTraining
 from TaskManager import TaskManager
-import sys
 
 warnings.filterwarnings("ignore")
 

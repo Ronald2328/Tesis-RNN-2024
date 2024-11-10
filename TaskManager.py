@@ -5,7 +5,7 @@ import logging
 from Get_data import DatabaseManager
 from ModelTraining import ModelTraining
 
-# Configuración del logger
+# Configuración del logger para capturar mensajes de información y errores
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -14,12 +14,13 @@ class TaskManager:
                  folder_path: str, model_filename: str, city: str = 'Piura'):
         """
         Inicializa la clase TaskManager.
-        
+
         Args:
-            data_updater (DatabaseManager): Instancia del gestor de base de datos.
-            model_trainer (ModelTraining): Instancia del gestor de entrenamiento de modelos.
-            folder_path (str): Ruta del directorio que contiene el modelo.
+            data_updater (DatabaseManager): Instancia para actualizar y gestionar la base de datos.
+            model_trainer (ModelTraining): Instancia para cargar y gestionar modelos de entrenamiento.
+            folder_path (str): Ruta al directorio donde se encuentra el archivo del modelo.
             model_filename (str): Nombre del archivo del modelo.
+            city (str, opcional): Nombre de la ciudad. Por defecto es 'Piura'.
         """
         self.data_updater = data_updater
         self.model_trainer = model_trainer
@@ -33,7 +34,7 @@ class TaskManager:
         Convierte una secuencia a un DataFrame de pandas.
 
         Args:
-            sequence (array-like): La secuencia de datos a convertir.
+            sequence (array-like): Secuencia de datos para convertir.
             columns (list): Lista de nombres de las columnas del DataFrame.
 
         Returns:
@@ -43,19 +44,24 @@ class TaskManager:
 
     def run(self):
         """
-        Ejecuta el proceso principal de gestión de tareas.
-        
-        Actualiza la base de datos, obtiene el modelo y realiza predicciones según la diferencia de días 
-        entre la fecha más reciente de los datos y la fecha de la última predicción.
+        Ejecuta el proceso principal de gestión de tareas:
+        - Actualiza la base de datos.
+        - Carga el modelo y realiza predicciones.
+        - Compara fechas y decide si se necesita hacer predicciones futuras o actuales.
         """
         try:
+            # Actualiza los datos meteorológicos en la base de datos
             self.data_updater.load_or_update_weather_data(self.city)
+            # Obtiene los datos combinados para la ciudad
             df_combined = self.data_updater.get_combined_dataframe(self.city)
+            # Carga el modelo desde la ruta especificada
             final_model = self.model_trainer.load_model(self.folder_path, self.model_filename)
 
+            # Obtiene las fechas de los datos más recientes y de la última predicción
             latest_date, latest_date_prediction = self.get_dates()
             day_difference = (latest_date - latest_date_prediction).days
 
+            # Decide el proceso de predicción basado en la diferencia de días
             if day_difference > 1:
                 self.process_future_predictions(df_combined, final_model, day_difference)
             else:
@@ -69,82 +75,91 @@ class TaskManager:
         Obtiene las fechas más recientes de los datos y de la última predicción.
 
         Returns:
-            tuple: Una tupla que contiene la fecha más reciente de los datos y la fecha de la última predicción.
+            tuple: Fecha más reciente de los datos y fecha de la última predicción.
         """
         return self.data_updater.get_latest_date(), self.data_updater.get_latest_date_prediction()
 
     def process_future_predictions(self, df_combined, final_model, day_difference, window_size=30):
         """
-        Procesa las predicciones futuras basadas en los datos más recientes.
+        Procesa predicciones futuras basadas en los datos actuales.
 
         Args:
-            df_combined (pd.DataFrame): DataFrame que contiene los datos combinados.
-            final_model: El modelo final cargado para realizar predicciones.
-            day_difference (int): Diferencia en días entre las fechas más recientes y la última predicción.
+            df_combined (pd.DataFrame): DataFrame con datos combinados.
+            final_model: Modelo de Keras para predicciones.
+            day_difference (int): Diferencia en días para calcular futuras predicciones.
+            window_size (int, opcional): Tamaño de la ventana de secuencia. Por defecto es 30.
         """
         try:
+            # Prepara los datos más recientes
             last_data = self.prepare_last_data(df_combined, window_size, day_difference)
+            # Extrae secuencias de los datos
             sequences = self.extract_sequences(last_data, window_size, day_difference)
 
+            # Procesa cada secuencia para generar predicciones
             for seq in sequences:
                 self.process_sequence(seq, final_model)
-            
+
+            # Repite el proceso para verificar si se necesitan más predicciones
             self.run()
         except Exception as e:
             logger.error(f"Error processing future predictions: {e}")
 
     def process_sequence(self, seq, final_model):
         """
-        Procesa una secuencia de datos para obtener predicciones.
+        Procesa una secuencia de datos y realiza predicciones.
 
         Args:
-            seq (array-like): Secuencia de datos para realizar la predicción.
-            final_model: El modelo utilizado para realizar predicciones.
+            seq (array-like): Secuencia de datos de entrada.
+            final_model: Modelo de Keras para predicciones.
         """
         try:
+            # Modifica la secuencia para incluir solo las características relevantes
             features = ['id', 'time', 'tmax', 'tmin', 'tavg', 'pres']
             modified_sequence = np.hstack((seq[:, 0:5], seq[:, 10].reshape(-1, 1)))
             sequence_df = self.convert_to_dataframe(modified_sequence, features)
-            df_predictions = self.model_trainer.get_predictions(final_model, sequence_df)
 
-            # Renombrar columnas
+            # Obtiene las predicciones usando el modelo
+            df_predictions = self.model_trainer.get_predictions(final_model, sequence_df, self.city)
+
+            # Renombra las columnas de las predicciones para cargar a la base de datos
             df_predictions.rename(columns={
-                    'id': 'ciudad',
-                    'time': 'dia',
-                    'tmax': 'temp_max',
-                    'tmin': 'temp_min',
-                    'tavg': 'avg_temp'}, inplace=True)
-            
-            self.data_updater.upload_data_to_database(df_predictions, table='prediccion')
+                'id': 'ciudad',
+                'time': 'dia',
+                'tmax': 'temp_max',
+                'tmin': 'temp_min',
+                'tavg': 'avg_temp'}, inplace=True)
+
+            # Sube las predicciones a la base de datos
+            self.data_updater.upload_data_to_database(df_predictions, table='predic')
             self.print_next_prediction()
         except Exception as e:
             logger.error(f"Error processing sequence: {e}")
 
     def prepare_last_data(self, df_combined, window_size, day_difference):
         """
-        Prepara los últimos datos necesarios para las predicciones.
+        Prepara los datos necesarios para la predicción de acuerdo con la ventana de tiempo.
 
         Args:
-            df_combined (pd.DataFrame): DataFrame que contiene todos los datos combinados.
-            window_size (int): Tamaño de la ventana para la secuencia.
+            df_combined (pd.DataFrame): DataFrame con todos los datos combinados.
+            window_size (int): Tamaño de la ventana de secuencia.
             day_difference (int): Diferencia en días para ajustar los datos.
 
         Returns:
-            pd.DataFrame: DataFrame con los últimos datos preparados.
+            pd.DataFrame: DataFrame con los datos preparados.
         """
         return df_combined.iloc[-(window_size + day_difference):]
 
     def extract_sequences(self, last_data, window_size, day_difference):
         """
-        Extrae las secuencias de datos de los últimos 30 días.
+        Extrae secuencias de datos para hacer predicciones futuras.
 
         Args:
-            last_data (pd.DataFrame): DataFrame con los últimos 30 días de datos.
-            window_size (int): Tamaño de la ventana para la secuencia.
-            day_difference (int): Diferencia en días para ajustar las secuencias.
+            last_data (pd.DataFrame): DataFrame con los datos más recientes.
+            window_size (int): Tamaño de la ventana de secuencia.
+            day_difference (int): Diferencia en días para crear las secuencias.
 
         Returns:
-            list: Lista de secuencias extraídas de los datos.
+            list: Lista de secuencias de datos.
         """
         sequences = []
         for i in range(day_difference):
@@ -156,35 +171,37 @@ class TaskManager:
 
     def process_current_predictions(self, df_combined, final_model):
         """
-        Procesa las predicciones actuales basadas en los datos disponibles.
+        Procesa las predicciones basadas en los datos actuales.
 
         Args:
-            df_combined (pd.DataFrame): DataFrame que contiene los datos combinados.
-            final_model: El modelo utilizado para realizar predicciones.
+            df_combined (pd.DataFrame): DataFrame con datos combinados.
+            final_model: Modelo de Keras utilizado para las predicciones.
         """
         try:
+            # Reestructura las columnas para el modelo
             features = ['id', 'time', 'tmax', 'tmin', 'tavg', 'pres']
             df_combined = df_combined[['id_ciudad', 'dia', 'temp_max', 'temp_min', 'avg_temp', 'presion']]
             df_combined.columns = features
-            print(df_combined) 
-            df_predictions = self.model_trainer.get_predictions(final_model, df_combined.iloc[:, :6])
-            print(df_predictions)
 
-            # Renombrar columnas
+            # Realiza la predicción y muestra el resultado
+            df_predictions = self.model_trainer.get_predictions(final_model, df_combined.iloc[:, :6],self.city)
+
+            # Renombra las columnas para cargar en la base de datos
             df_predictions.rename(columns={
-                        'id': 'ciudad',
-                        'time': 'dia',
-                        'tmax': 'temp_max',
-                        'tmin': 'temp_min',
-                        'tavg': 'avg_temp'}, inplace=True)
+                'id': 'ciudad',
+                'time': 'dia',
+                'tmax': 'temp_max',
+                'tmin': 'temp_min',
+                'tavg': 'avg_temp'}, inplace=True)
             
-            self.data_updater.upload_data_to_database(df_predictions, table='prediccion')
+            # Sube los resultados a la base de datos
+            self.data_updater.upload_data_to_database(df_predictions, table='predic')
         except Exception as e:
             logger.error(f"Error processing current predictions: {e}")
 
     def print_next_prediction(self):
         """
-        Imprime la siguiente predicción basada en los datos más recientes.
+        Imprime la próxima predicción basada en la fecha más reciente.
         """
         try:
             latest_date_prediction = self.data_updater.get_latest_date_prediction()
@@ -196,6 +213,6 @@ class TaskManager:
     @staticmethod
     def clear_terminal():
         """
-        Limpia la terminal según el sistema operativo.
+        Limpia la terminal de acuerdo al sistema operativo.
         """
         os.system('cls' if os.name == 'nt' else 'clear')
