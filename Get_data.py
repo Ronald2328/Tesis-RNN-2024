@@ -230,7 +230,7 @@ class DatabaseManager:
         finally:
             self.close_connection(connection)
 
-    def get_latest_date(self, city=None):
+    def get_latest_date(self, city):
         '''
         Recupera la fecha más reciente en la que se registraron datos en las tablas de temperatura y viento_nieve.
         Si se especifica una ciudad, se recupera la fecha más reciente de esa ciudad. Si no se especifica, se
@@ -246,8 +246,7 @@ class DatabaseManager:
         try:
             if city:
                 # Obtener el id_ciudad correspondiente a la ciudad
-                city_id_query = f"SELECT id FROM ciudad WHERE ciudad = '{city}'"
-                city_id = pd.read_sql(city_id_query, connection).iloc[0, 0]
+                city_id= self.get_city_id(city)
 
                 # Obtener la fecha más reciente para la ciudad específica
                 fecha1 = pd.read_sql(f"SELECT MAX(dia) FROM temperatura WHERE id_ciudad = {city_id}", connection).iloc[0, 0]
@@ -479,7 +478,7 @@ class DatabaseManager:
 
         return df_temperature, df_wind_snow
 
-    def get_latest_date_prediction(self):
+    def get_latest_date_prediction(self, city):
         '''
         Obtiene la fecha más reciente en la que se registraron predicciones en la base de datos.
 
@@ -488,16 +487,25 @@ class DatabaseManager:
         '''
         connection = None
         try:
+            # Obtener el id_ciudad correspondiente a la ciudad
+            city_id = self.get_city_id(city)
+
             connection = self.connect_to_database()
-            query = "SELECT MAX(dia) FROM predic"
-            return pd.read_sql(query, connection).iloc[0].iloc[0]
+            query = f"SELECT MAX(dia) FROM predic WHERE ciudad = {city_id}"
+            result = pd.read_sql(query, connection).iloc[0].iloc[0]
+
+            # Si no hay predicciones (el resultado es NaN), devolvemos la fecha más reciente de los datos
+            if pd.isna(result):
+                return self.get_latest_date(city)
+            return result
+        
         except Exception as e:
             print(f"Error al obtener la fecha más reciente de predicción: {e}")
             return None
         finally:
             self.close_connection(connection)
     
-    def next_prediction(self):
+    def next_prediction(self, city):
         '''
         Recupera la predicción más reciente registrada en la base de datos.
 
@@ -507,7 +515,9 @@ class DatabaseManager:
         connection = None
         try:
             connection = self.connect_to_database()
-            query = "SELECT * FROM predic WHERE dia = (SELECT MAX(dia) FROM predic)"
+            city_id = self.get_city_id(city)
+
+            query = f"SELECT * FROM predic WHERE dia = (SELECT MAX(dia) FROM predic WHERE ciudad = {city_id}) AND ciudad = '{city_id}'"
             df = pd.read_sql(query, connection)
             return df
         except Exception as e:

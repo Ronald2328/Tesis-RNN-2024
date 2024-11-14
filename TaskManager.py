@@ -77,7 +77,7 @@ class TaskManager:
         Returns:
             tuple: Fecha más reciente de los datos y fecha de la última predicción.
         """
-        return self.data_updater.get_latest_date(), self.data_updater.get_latest_date_prediction()
+        return self.data_updater.get_latest_date(self.city), self.data_updater.get_latest_date_prediction(self.city)
 
     def process_future_predictions(self, df_combined, final_model, day_difference, window_size=30):
         """
@@ -204,8 +204,8 @@ class TaskManager:
         Imprime la próxima predicción basada en la fecha más reciente.
         """
         try:
-            latest_date_prediction = self.data_updater.get_latest_date_prediction()
-            prediction = self.data_updater.next_prediction()
+            latest_date_prediction = self.data_updater.get_latest_date_prediction(self.city)
+            prediction = self.data_updater.next_prediction(self.city)
             logger.info(f"\nPrediction for the next day ({latest_date_prediction}):\n{prediction}\n")
         except Exception as e:
             logger.error(f"Could not retrieve the next prediction: {e}")
