@@ -6,16 +6,19 @@ from LSTM_model import LSTM
 
 def main():
     # Define la ciudad y las columnas de entrada
-    ciudad = 'Piura'  # O puedes cambiarlo a cualquier otra ciudad que tengas en la base de datos
-    columnas_entrada = ['columna1', 'columna2', 'columna3']  # Ajusta estas columnas a las que necesites
+    ciudad = 'Piura'
 
     # Directorio donde se encuentra el modelo y el archivo de escalado
     folder_path = 'C:\\Users\\Ronaldo Olivares\\Desktop\\DOCUMENTO DE TESIS\\Codigos'
     model_filename = 'modelo_completo.pth'
-    scaler_path = 'escalado.pkl'  # Ruta a tu archivo de escalado (si corresponde)
+    scaler_path = 'escalado.pkl'  # Ruta a tu archivo de escalado
 
     # Inicialización de los gestores de base de datos y modelo
-    data_manager = DatabaseManager(host='localhost', user='root', passwd='root', database='meteorology')
+    data_manager = DatabaseManager(host='localhost', 
+                                   user='root', 
+                                   passwd='root', 
+                                   database='meteorology')
+    
     model_trainer = ModelTraining(data_manager, scaler_path)
 
     # Inicializa el TaskManager con los datos necesarios
