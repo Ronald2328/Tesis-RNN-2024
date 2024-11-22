@@ -69,7 +69,7 @@ def main():
     ciudad = 'Piura'
 
     # Directorio donde se encuentra el modelo y el archivo de escalado
-    folder_path = 'C:\\Users\\Ronaldo Olivares\\Desktop\\DOCUMENTO DE TESIS\\Codigos'
+    folder_path = os.path.join(os.getcwd())
     model_filename = 'modelo_completo.pth'
     scaler_path = 'escalado.pkl'  # Ruta a tu archivo de escalado
 
