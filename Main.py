@@ -58,8 +58,6 @@ def check_and_install_requirements(requirements_file="requirements.txt"):
             print(f"Error al instalar dependencias: {e}")
             sys.exit(1)
 
-
-
 def main():
     # Llama a la función para verificar e instalar requisitos
     requirements_file = "requirements.txt"  # Asegúrate de tener este archivo en el mismo directorio
@@ -77,14 +75,6 @@ def main():
     from Get_data import DatabaseManager
     from ModelTraining import ModelTraining
     from TaskManager import TaskManager
-
-    try:
-        from LSTM_model import LSTM
-        print("La clase LSTM se importó correctamente.")
-    except ImportError as e:
-        print(f"Error al importar la clase LSTM: {e}")
-        sys.exit(1)
-
 
     data_manager = DatabaseManager(host='localhost', 
                                    user='root', 
