@@ -28,7 +28,7 @@ class TaskManager:
                                                     self.data_updater.get_latest_prediction_date_for_city(self.city)
             day_difference = (latest_date - latest_date_prediction).days
 
-            if day_difference > 0:
+            if day_difference >= 0:
                 window_size = 20
                 self.process_predictions(df_combined, final_model, day_difference, window_size)
             else:
@@ -41,8 +41,8 @@ class TaskManager:
                             day_difference: int, window_size: int) -> None:
         try:
             columns = df_combined.columns
-            last_data = df_combined.iloc[-(window_size + day_difference):]
-            if day_difference == 1:
+            last_data = df_combined.iloc[-(window_size + day_difference):].copy() # Ver en un futuro
+            if day_difference == 0:
                 sequences = [last_data.iloc[-window_size:].values]
             else:
                 sequences = [last_data.iloc[i:i + window_size].values for i in range(day_difference)]
