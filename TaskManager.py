@@ -45,13 +45,12 @@ class TaskManager:
             if day_difference == 0:
                 sequences = [last_data.iloc[-window_size:].values]
             else:
-                sequences = [last_data.iloc[i:i + window_size].values for i in range(day_difference)]
+                sequences = [last_data.iloc[i:i + window_size].values for i in range(day_difference+1)]
             
             for seq in sequences:
                 sequence_df = pd.DataFrame(seq, columns=columns)
                 df_predictions = self.model_trainer.get_predictions(final_model, sequence_df, self.city, window_size)
                 self.data_updater.insert_data('predic', df_predictions)
-                self.print_next_prediction()
 
         except Exception as e:
             logger.error(f"Error al procesar las predicciones: {e}\n")

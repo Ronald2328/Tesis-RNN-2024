@@ -38,6 +38,7 @@ class DatabaseManager:
     def insert_data(self, table: str, data: pd.DataFrame, ignore_column: Optional[str] = None) -> None:
         connection = self.connect_to_database()
         try:
+            data = data.fillna(0)
             existing_data: pd.DataFrame = self.get_dataframe(table)
             if ignore_column and ignore_column in data.columns:
                 data_without_ignore: pd.DataFrame = data.drop(columns=[ignore_column])
