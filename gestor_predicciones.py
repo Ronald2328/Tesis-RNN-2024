@@ -2,7 +2,6 @@ import os
 import joblib
 import numpy as np
 import pandas as pd
-from tensorflow.keras.models import load_model  # type: ignore
 import torch
 from gestor_datos_climaticos import GestorDatosClimaticos
 import logging

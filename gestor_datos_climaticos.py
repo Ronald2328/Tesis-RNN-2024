@@ -1,5 +1,5 @@
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from datetime import datetime
 from meteostat import Daily, Point
 from typing import Optional, Tuple

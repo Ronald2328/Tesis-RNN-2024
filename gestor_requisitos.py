@@ -2,7 +2,7 @@ import logging
 import os
 import subprocess
 import sys
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 # Configuración del logging
 logging.basicConfig(

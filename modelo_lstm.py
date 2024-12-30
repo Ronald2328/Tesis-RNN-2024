@@ -1,79 +1,62 @@
+"""
+Este script define una implementación de una red neuronal LSTM (Long Short-Term Memory) 
+utilizando PyTorch, diseñada para modelar series temporales o datos secuenciales.
+
+Importaciones:
+- torch y torch.nn: Bibliotecas de PyTorch para construir y entrenar modelos de aprendizaje profundo.
+- device: Variable que define si se utiliza la GPU (si está disponible) o la CPU para ejecutar el modelo.
+
+*Uso típico:
+Este modelo puede usarse en tareas como predicción de series temporales, modelado de datos 
+secuenciales y aprendizaje de dependencias temporales en conjuntos de datos estructurados.
+"""
+
 import torch
 import torch.nn as nn
 
+# Configuración del dispositivo: usa GPU si está disponible, de lo contrario usa CPU
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 class LSTM(nn.Module):
+  def __init__(self, input_dim, hidden_dim, layer_dim, output_dim):
     """
-    Implementación de una Red Neuronal Recurrente LSTM (Long Short-Term Memory)
+    Implementación de una red neuronal LSTM para modelar datos secuenciales o series temporales.
     
-    Esta clase implementa una red LSTM multicapa que puede ser utilizada para tareas
-    de procesamiento de secuencias como predicción de series temporales o 
-    clasificación de secuencias.
-
-    Atributos:
-        input_dim (int): Dimensión de entrada para cada elemento de la secuencia
-        hidden_dim (int): Número de unidades en las capas ocultas LSTM
-        layer_dim (int): Número de capas LSTM apiladas
-        output_dim (int): Dimensión del vector de salida
-        dropout_prob (float): Probabilidad de dropout entre las capas LSTM
-
-    Arquitectura:
-        1. Capas LSTM apiladas con dropout entre ellas
-        2. Capa lineal final que proyecta a la dimensión de salida deseada
+    :param input_dim: Dimensión de los datos de entrada (número de características)
+    :param hidden_dim: Dimensión de los estados ocultos de la LSTM
+    :param layer_dim: Número de capas en la LSTM
+    :param output_dim: Dimensión de los datos de salida (número de clases o características a predecir)
+    :return: Modelo LSTM
     """
+    super(LSTM, self).__init__()
+    self.M = hidden_dim     # Dimensión de las unidades ocultas
+    self.L = layer_dim      # Número de capas LSTM
 
-    def __init__(self, input_dim, hidden_dim, layer_dim, output_dim, dropout_prob):
-        """
-        Inicializa la red LSTM.
+    # Capa LSTM para procesar datos secuenciales
+    self.rnn = nn.LSTM(
+        input_size=input_dim,      # Dimensionalidad de las características de entrada
+        hidden_size=hidden_dim,    # Número de unidades ocultas
+        num_layers=layer_dim,      # Número de capas LSTM
+        batch_first=True)          # Formato de entrada: (batch, secuencia, características)
+    
+    # Capa completamente conectada para la salida final
+    self.fc = nn.Linear(hidden_dim, output_dim)
 
-        :param input_dim: Dimensión de entrada para cada elemento de la secuencia
-        :param hidden_dim: Número de unidades en las capas ocultas LSTM
-        :param layer_dim: Número de capas LSTM apiladas
-        :param output_dim: Dimensión del vector de salida
-        :param dropout_prob: Probabilidad de dropout entre las capas LSTM
+  def forward(self, X):
+    """
+    Realiza la propagación hacia adelante a través de la red LSTM.
 
-        Ejemplo:
-            >>> modelo = LSTM(input_dim=10, hidden_dim=64, layer_dim=2, output_dim=1)
-        """
-        super(LSTM, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.layer_dim = layer_dim
+    :param X: Datos de entrada en formato (batch, secuencia, características)
+    :return: Predicciones de la red LSTM
+    """
+    ## Inicializa el estado oculto (h0) y el estado de celda (c0) en ceros
+    h0 = torch.zeros(self.L, X.size(0), self.M).to(device)
+    c0 = torch.zeros(self.L, X.size(0), self.M).to(device)
 
-        # Capa LSTM
-        self.lstm = nn.LSTM(
-            input_size=input_dim,       # Dimensión de entrada
-            hidden_size=hidden_dim,     # Dimensión del estado oculto
-            num_layers=layer_dim,       # Número de capas LSTM
-            batch_first=True,           # Espera entrada en formato (batch, seq_len, input_dim)
-            dropout=dropout_prob        # Dropout entre capas LSTM
-        )
-        
-        # Capa densa final
-        self.fc = nn.Linear(hidden_dim, output_dim)
+    # Procesa la entrada a través de la capa LSTM
+    out, (hn, cn) = self.rnn(X, (h0.detach(), c0.detach()))
 
-    def forward(self, X):
-        """
-        Realiza la pasada hacia adelante de la red.
-
-        :param X: Tensor de entrada con dimensiones (batch_size, seq_length, input_dim)
-        :return: Tensor de salida con dimensiones (batch_size, output_dim)
-
-        Ejemplo:
-            >>> modelo = LSTM(input_dim=10, hidden_dim=64, layer_dim=2, output_dim=1)
-            >>> X = torch.randn(32, 10, 10)
-            >>> out = modelo(X) 
-        """
-        # Inicializar estados con ceros
-        # Dimensiones: (num_layers, batch_size, hidden_dim)
-        h0 = torch.zeros(self.layer_dim, X.size(0), self.hidden_dim).to(X.device)
-        c0 = torch.zeros(self.layer_dim, X.size(0), self.hidden_dim).to(X.device)
-
-        # Procesar secuencia
-        # out shape: (batch_size, seq_length, hidden_dim)
-        # hn, cn shape: (num_layers, batch_size, hidden_dim)
-        out, (hn, cn) = self.lstm(X, (h0, c0))
-        
-        # Usar último estado oculto para predicción
-        # Salida final shape: (batch_size, output_dim)
-        out = self.fc(out[:, -1, :])
-        
-        return out
+    # Obtiene la salida del último paso de tiempo y pasa por la capa fc
+    out = self.fc(out[:, -1, :])
+    
+    return out

@@ -2,6 +2,9 @@ import os
 from modelo_lstm import LSTM
 from gestor_requisitos import verificar_e_instalar_requisitos
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Silencia las advertencias de TensorFlow
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Desactiva las operaciones oneDNN para evitar errores
+
 def main():
     verificar_e_instalar_requisitos()
 
