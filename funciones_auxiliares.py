@@ -1,5 +1,5 @@
 """
-Este módulo, `funciones_auxiliares`, incluye funciones útiles para el 
+Este módulo, funciones_auxiliares, incluye funciones útiles para el 
 análisis y evaluación de modelos de predicción de temperatura. 
 
 Cada función está diseñada para ser modular y reutilizable en diferentes 

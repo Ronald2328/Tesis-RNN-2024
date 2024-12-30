@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 from gestor_datos_climaticos import GestorDatosClimaticos
+from funciones_auxiliares import asignar_estacion
 import logging
 
 class GestorPredicciones:
@@ -49,7 +50,8 @@ class GestorPredicciones:
             raise ValueError("Formato de modelo no soportado. Asegúrese de que el archivo sea .pth (PyTorch).\n")
 
     def preparar_datos(self, df: pd.DataFrame, 
-                       agregar_columnas_mes: bool=True) -> pd.DataFrame:
+                       agregar_columnas_mes: bool = True, 
+                       agregar_columnas_estacion: bool = True) -> pd.DataFrame:
         """
         Prepara los datos para el entrenamiento o predicción.
 
@@ -60,14 +62,21 @@ class GestorPredicciones:
         """
         df['time'] = pd.to_datetime(df['time'])
         df['mes'] = df['time'].dt.month
-        
+        df['dia'] = df['time'].dt.day
+        df['estacion'] = df.apply(asignar_estacion, axis=1)
+
+        if agregar_columnas_estacion:
+            estaciones_dummies = pd.get_dummies(df['estacion'], prefix='', drop_first=False).astype(int)
+            todas_estaciones = ['Verano', 'Otoño', 'Invierno', 'Primavera']
+            estaciones_dummies = estaciones_dummies.reindex(columns=todas_estaciones, fill_value=0)
+            df = pd.concat([df, estaciones_dummies], axis=1)
+
         if agregar_columnas_mes:
-            columnas_mes = pd.get_dummies(df['mes'], prefix='mes').astype(int)
+            meses_dummies = pd.get_dummies(df['mes'], prefix='mes').astype(int)
             todos_meses = [f'mes_{i}' for i in range(1, 13)]
-            columnas_mes = columnas_mes.reindex(columns=todos_meses, fill_value=0)
-            df = pd.concat([df, columnas_mes], axis=1)
-        
-        df.drop('mes', axis=1, inplace=True)
+            meses_dummies = meses_dummies.reindex(columns=todos_meses, fill_value=0)
+            df = pd.concat([df, meses_dummies], axis=1)
+
         return df
 
     def generar_prediccion_climatica(self, modelo_final: torch.nn.Module, 
@@ -87,7 +96,9 @@ class GestorPredicciones:
         df_combinado = df_combinado.dropna(axis=1, how='all')
         df_combinado = self.preparar_datos(df_combinado, agregar_columnas_mes)
 
-        caracteristicas = [col for col in df_combinado.columns if col not in ['id_ciudad', 'time', 'snow', 'wpgt', 'tsun']]
+        caracteristicas = [col for col in df_combinado.columns if col not in ['id_ciudad', 'time', 'snow', 'wpgt', 'tsun',
+                                                                              'estacion','Primavera','mes_7','mes_8',
+                                                                              'mes_9','mes_10','mes_11','mes_12']]
         
         datos = df_combinado[caracteristicas].values
         datos = self.escalador.transform(datos)
