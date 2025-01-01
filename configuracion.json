@@ -1,0 +1,7 @@
+{
+    "usuario": "root",
+    "contrasena": "root",
+    "base_datos": "meteorology",
+    "servidor": "localhost",
+    "ciudad": "Piura"
+}
