@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from datetime import datetime
 from meteostat import Daily, Point
 from typing import Optional, Tuple
+from inicializador_de_bd import InicializadorBaseDatos
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -23,18 +24,22 @@ class GestorDatosClimaticos:
         :param base_datos: Nombre de la base de datos.
         """
         self.url_base_datos: str = f"mysql+pymysql://{usuario}:{contrasena}@{servidor}/{base_datos}"
+        self.base_datos = base_datos
+        self.inicializador = InicializadorBaseDatos(self)
 
     def conectar_base_datos(self) -> None:
         """
-        Establece la conexión con la base de datos MySQL.
+        Intenta conectar con la base de datos. Si no existe, la crea.
 
         :return: Objeto de conexión a la base de datos.
         """
         try:
             return create_engine(self.url_base_datos).connect()
         except Exception as e:
-            print(f"Error al conectar a la base de datos: {e}\n")
-            return None
+            print("Base de datos no encontrada. Procediendo a crearla...")
+            self.inicializador.crear_base_datos()
+            self.inicializador.crear_tablas()
+            return create_engine(self.url_base_datos).connect()
 
     def cerrar_conexion(self, conexion: Optional[object]) -> None:
         """
