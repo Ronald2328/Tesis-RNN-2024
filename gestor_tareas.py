@@ -44,8 +44,8 @@ class GestorTareas:
 
             ultima_fecha, ultima_fecha_prediccion = self.actualizador_datos.obtener_ultima_fecha_ciudad(self.ciudad), \
                                                     self.actualizador_datos.obtener_ultima_fecha_prediccion(self.ciudad)
-            diferencia_dias = (ultima_fecha - ultima_fecha_prediccion).days
-
+            diferencia_dias = (ultima_fecha.date() - ultima_fecha_prediccion.date()).days
+            
             if diferencia_dias >= 0:
                 tamano_ventana = 20
                 self.procesar_predicciones(df_combinado, modelo_final, diferencia_dias, tamano_ventana)

@@ -24,6 +24,7 @@ class GestorDatosClimaticos:
         :param base_datos: Nombre de la base de datos.
         """
         self.url_base_datos: str = f"mysql+pymysql://{usuario}:{contrasena}@{servidor}/{base_datos}"
+        self.url_servidor: str = f"mysql+pymysql://{usuario}:{contrasena}@{servidor}/"
         self.base_datos = base_datos
         self.inicializador = InicializadorBaseDatos(self)
 
@@ -36,9 +37,10 @@ class GestorDatosClimaticos:
         try:
             return create_engine(self.url_base_datos).connect()
         except Exception as e:
-            print("Base de datos no encontrada. Procediendo a crearla...")
+            print("Base de datos no encontrada. Procediendo a crearla...\n")
             self.inicializador.crear_base_datos()
             self.inicializador.crear_tablas()
+            print(f"Base de datos {self.base_datos} creada correctamente.\n")
             return create_engine(self.url_base_datos).connect()
 
     def cerrar_conexion(self, conexion: Optional[object]) -> None:
