@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import torch
 from gestor_datos_climaticos import GestorDatosClimaticos
-from funciones_auxiliares import asignar_estacion
 import logging
 
 class GestorPredicciones:
@@ -12,7 +11,7 @@ class GestorPredicciones:
     Clase para gestionar las predicciones usando modelos pre-entrenados.
     """
     def __init__(self, gestor_datos: GestorDatosClimaticos, 
-                 ruta_escalador='escalado.pkl'):
+                 ruta_escalador='escalado.pkl') -> None:
         """
         Inicializa el gestor de entrenamiento de modelos.
 
@@ -25,6 +24,24 @@ class GestorPredicciones:
         self.gestor_datos = gestor_datos
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+
+    def determinar_estacion(self, mes: int, dia: int) -> str:
+        """
+        Determina la estación del año basada en el mes y el día proporcionados.
+
+        :param mes: Mes del año (1-12).
+        :param dia: Día del mes (1-31).
+        :return: La estación del año correspondiente.
+        """
+        if (mes == 12 and dia >= 1) or mes in [1, 2]:
+            return 'Verano'
+        if mes in [3, 4, 5]:
+            return 'Otoño'
+        if mes in [6, 7, 8]:
+            return 'Invierno'
+        if mes in [9, 10, 11]:
+            return 'Primavera'
+        return None
 
     def cargar_modelo(self, ruta_carpeta: str, 
                       nombre_modelo: str, modelo=None) -> torch.nn.Module:
@@ -57,13 +74,14 @@ class GestorPredicciones:
 
         :param df: DataFrame con los datos a preparar.
         :param agregar_columnas_mes: Si se deben agregar columnas dummy para meses.
+        :param agregar_columnas_estacion: Si se deben agregar columnas dummy para estaciones.
         :return: DataFrame procesado.
         :nota: Incluye codificación one-hot para meses si se especifica.
         """
         df['time'] = pd.to_datetime(df['time'])
         df['mes'] = df['time'].dt.month
         df['dia'] = df['time'].dt.day
-        df['estacion'] = df.apply(asignar_estacion, axis=1)
+        df['estacion'] = df.apply(lambda row: self.determinar_estacion(row['mes'], row['dia']), axis=1)
 
         if agregar_columnas_estacion:
             estaciones_dummies = pd.get_dummies(df['estacion'], prefix='', drop_first=False).astype(int)
