@@ -23,6 +23,7 @@ class GestorDatosClimaticos:
         :param contrasena: Contraseña del usuario de la base de datos.
         :param base_datos: Nombre de la base de datos.
         """
+        self.url_servidor: str = f"mysql+pymysql://{usuario}:{contrasena}@{servidor}/"
         self.url_base_datos: str = f"mysql+pymysql://{usuario}:{contrasena}@{servidor}/{base_datos}"
         self.base_datos = base_datos
         self.inicializador = InicializadorBaseDatos(self)
