@@ -5,6 +5,7 @@ Este proyecto forma parte de una tesis que implementa un sistema para gestionar 
 ## Descripción
 
 El sistema permite:
+
 - Conectar con una base de datos MySQL para almacenar datos meteorológicos
 - Obtener datos climáticos históricos usando la API de Meteostat
 - Gestionar información de ciudades y sus coordenadas geográficas
@@ -25,6 +26,7 @@ El sistema permite:
 ## Instalación
 
 1. Crear y activar el entorno virtual:
+
 ```bash
 # Windows
 python -m venv venv
@@ -36,12 +38,14 @@ source venv/bin/activate
 ```
 
 2. Instalar dependencias:
+
 ```bash
 pip install -r requirements.txt
 ```
 
 3. Asegúrese de tener una base de datos MySQL llamada 'meteorology'
-2. Configure los parámetros de conexión:
+4. Configure los parámetros de conexión:
+
 ```python
 db_manager = DatabaseManager(
     host='localhost',
@@ -75,6 +79,7 @@ prediccion = db_manager.next_prediction(ciudad)
 ## Manejo de Errores
 
 El sistema incluye manejo de errores para:
+
 - Conexiones fallidas a la base de datos
 - Ciudades no encontradas
 - Datos duplicados

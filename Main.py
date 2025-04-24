@@ -7,7 +7,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Silencia las advertencias de TensorF
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Desactiva las operaciones oneDNN para evitar errores
 
 def main():
-    verificar_e_instalar_requisitos()
+    # verificar_e_instalar_requisitos()
 
     configurador = Configuracion() # Cargar configuraciones desde el archivo JSON
 
